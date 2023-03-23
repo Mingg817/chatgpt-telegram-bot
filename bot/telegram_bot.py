@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 
 from telegram import constants
 from telegram import Update, InlineQueryResultArticle, InputTextMessageContent, BotCommand
@@ -310,7 +311,23 @@ class ChatGPT3TelegramBot:
 
         await context.bot.send_chat_action(chat_id=chat_id, action=constants.ChatAction.TYPING)
 
-        response = await self.openai.get_chat_response(chat_id=chat_id, query=prompt)
+        try:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                reply_to_message_id=update.message.message_id,
+                text="Processing",
+                parse_mode=constants.ParseMode.MARKDOWN
+            )
+            response = await asyncio.wait_for(self.openai.get_chat_response(chat_id=chat_id, query=prompt), timeout=60)
+        except asyncio.TimeoutError:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                reply_to_message_id=update.message.message_id,
+                text="Timed out!",
+                parse_mode=constants.ParseMode.MARKDOWN
+            )
+            return
+        #response = await self.openai.get_chat_response(chat_id=chat_id, query=prompt)
         if not isinstance(response, tuple):
             await context.bot.send_message(
                 chat_id=chat_id,
